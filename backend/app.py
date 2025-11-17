@@ -76,8 +76,12 @@ def predict(ticker: str = Query("AAPL")):
     if df.empty:
         raise HTTPException(status_code=404, detail=f"No indicator data for ticker {ticker}")
     
+    # Logistic Regression model ( any issues regarding model prediction should raise 500 error, belongs here)
     sent = avg_vader_sent(fetch_headlines(ticker))
     xrow = make_feature_row(df, sent)
+
+    # 2D array for sklearn
+    X = np.asarray(xrow).reshape(1, -1)
 
     if model is None:
         r = df.dropna().iloc[-1]
@@ -85,12 +89,12 @@ def predict(ticker: str = Query("AAPL")):
         score = 0.8 * score / 2 + 0.2 * sent
         return PredictionResponse(
             ticker = ticker.upper(),
-            direction = ("UP" if score >= 0.5 else "DOWN"),
+            direction = "UP" if score >= 0.5 else "DOWN",
             confidence = min(0.9, abs(score - 0.5) + 0.5),
             trend_score = score * 2 - 1
         )
     try:
-        proba_up = float(model.predict_proba([xrow])[0][1])
+        proba_up = float(model.predict_proba(X)[0][1])
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Model prediction error: {e}")
     
@@ -101,41 +105,6 @@ def predict(ticker: str = Query("AAPL")):
         trend_score = float(proba_up * 2 - 1)
     )
 
-#JSON Response Model
-@app.get("/api/predict", response_model=PredictionResponse)
-def predict(ticker: str = Query("AAPL")):
-    df = yf.Ticker(ticker).history(period="6mo")
-    if df is None or df.empty:
-        raise HTTPException(status_code=404, detail=f"No data for ticker {ticker}")
-    
-    df = add_indicators(df)
-    if df.empty:
-        raise HTTPException(status_code=404, detail=f"No indicator data for ticker {ticker}")
-    
-    sent = avg_vader_sent(fetch_headlines(ticker))
-    xrow = make_feature_row(df, sent)
-
-    if model is None:
-        r = df.dropna().iloc[-1]
-        score = (1 if r["SMA20"] > r["SMA50"] else 0) + (1 if r["MACD"] > 0 else 0)
-        score = 0.8 * score / 2 + 0.2 * sent
-        return PredictionResponse(
-            ticker = ticker.upper(),
-            direction = ("UP" if score >= 0.5 else "DOWN"),
-            confidence = min(0.9, abs(score - 0.5) + 0.5),
-            trend_score = score * 2 - 1
-        )
-    try:
-        proba_up = float(model.predict_proba([xrow])[0][1])
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Model prediction error: {e}")
-    
-    return PredictionResponse(
-        ticker = ticker.upper(),
-        direction = ("UP" if proba_up >= 0.5 else "DOWN"),
-        confidence = float(max(proba_up,1 - proba_up)),
-        trend_score = float(proba_up * 2 - 1)
-    )
 from typing import List
 from pydantic import BaseModel
 
