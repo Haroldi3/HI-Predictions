@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import {
-  SafeAreaView,
   View,
   Text,
   TextInput,
@@ -9,11 +8,20 @@ import {
   StyleSheet,
   ScrollView,
 } from "react-native";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { API_BASE } from "./src/config";
 
 const WATCHLIST = ["AAPL", "MSFT", "NVDA", "AMZN", "TSLA"];
 
 export default function App() {
+    return (
+        <SafeAreaProvider>
+            <MainApp />
+        </SafeAreaProvider>
+    );
+}
+
+function MainApp() {
   const [ticker, setTicker] = useState("AAPL");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -34,7 +42,7 @@ export default function App() {
     setResult(null);
 
     try {
-      const url = `${API_BASE}/api/predict?ticker=${encodeURIComponent(t)}`;
+      const url = `${API_BASE}/api/predict?ticker=${encodeURIComponent(ticker)}`;
       const res = await fetch(url);
 
       if (!res.ok) {

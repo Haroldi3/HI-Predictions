@@ -1,1 +1,1 @@
-export const API_BASE = "http://10.108.207.252:8001";
+export const API_BASE = "https://hi-predictions.onrender.com";
