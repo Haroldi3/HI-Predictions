@@ -121,3 +121,32 @@ def prdeict_batch(body: BatchPredictionRequest):
         except HTTPException as he:
             responses.append({"ticker": ticker.upper(), "error": he.detail})
     return {"results": responses}
+
+# Candles endpoint
+@app.get("/api/candles")
+def get_candles(
+    ticker: str = Query("AAPL"),
+    period: str = Query("1mo"),
+    interval: str = Query("1d")
+):
+    try:
+        df = yf.Ticker(ticker).history(period=period, interval=interval)
+        if df is None or df.empty:
+            raise HTTPException(status_code=404, detail=f"No candle data for {ticker}")
+        
+        df = df.dropna().reset_index()
+        
+        candles = []
+        for _, row in df.iterrows():
+            candles.append({
+                "time": row["Date"].isoformat(),
+                "open": float(row["Open"]),
+                "high": float(row["High"]),
+                "low": float(row["Low"]),
+                "close": float(row["Close"]),
+                "volume": int(row["Volume"])
+            })
+
+        return { "ticker": ticker.upper(), "candles": candles }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) 
